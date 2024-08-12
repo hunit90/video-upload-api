@@ -5,9 +5,9 @@ import {
   UseInterceptors,
   BadRequestException,
   Get,
-  Body,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+  Body, UploadedFiles
+} from "@nestjs/common";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,7 +19,7 @@ export class VideoController {
 
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
+    FilesInterceptor('file', 10, {  // 클라이언트 요청의 key 이름을 'file'로 변경
       storage: diskStorage({
         destination: './upload',
         filename: (req, file, callback) => {
@@ -42,17 +42,22 @@ export class VideoController {
       },
     }),
   )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
+  uploadFiles(@UploadedFiles() files: Express.Multer.File[]) {
+    if (!files || files.length === 0) {
       throw new BadRequestException('파일이 업로드되지 않았습니다.');
     }
 
-    const fileId = file.filename.split('.')[0]; // 파일명에서 ID 추출
+    const uploadedFiles = files.map((file) => {
+      const fileId = file.filename.split('.')[0]; // 파일명에서 ID 추출
+      return {
+        fileId: fileId, // 파일 ID 반환
+        filePath: `/upload/${file.filename}`,
+      };
+    });
 
     return {
       message: '파일 업로드 성공',
-      fileId: fileId, // 파일 ID 반환
-      filePath: `/upload/${file.filename}`,
+      files: uploadedFiles,
     };
   }
 
